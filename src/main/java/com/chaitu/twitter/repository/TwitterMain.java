@@ -9,34 +9,33 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import com.chaitu.authentication.AuthenticationTwitter;
 import com.chaitu.repository.UserRepository;
+import com.chaitu.twitter.authentication.AuthenticationTwitter;
 
+@Component
 public class TwitterMain 
 {
+	private  AuthenticationTwitter authenticationTwitter;
 	
-	public void loadIntoDB(TweetRepository tweetRepository) throws UnsupportedEncodingException 
+	@Autowired
+	public void setAuthenticationTwitter(AuthenticationTwitter authenticationTwitter)
 	{
-		String appToken=AuthenticationTwitter.getAppToken();
+		this.authenticationTwitter=authenticationTwitter;
+	}
+	public void loadIntoDB(TweetDAO tweetDAO) throws UnsupportedEncodingException 
+	{
+		String appToken=authenticationTwitter.getAppToken();
 		List<Tweet> tweets = searchTwitter("#springframework", appToken);
 		for (Tweet tweet : tweets) 
 		{
-			System.out.println(tweet);
-			TwitterDAO twitterDAO=new TwitterDAO();
-			twitterDAO.setTweetDesc(tweet.getText());
-			byte[] encoding1 = tweet.getUserName().getBytes("UTF-8");
-	        String string1 = new String(encoding1, "ISO8859-1");
-			twitterDAO.setUserName(string1);
-			byte[] encoding2 = tweet.getUserLocation().getBytes("UTF-8");
-	        String string2 = new String(encoding2, "ISO8859-1");
-			twitterDAO.setUserLocation(string2);
-			tweetRepository.save(twitterDAO);
+			tweetDAO.save(tweet);
 		}
 		System.out.println("Completed loading the tweets into DB");
 	}
-	private static List<Tweet> searchTwitter(String query, String appToken)
+	private static List<Tweet> searchTwitter(String query, String appToken) throws UnsupportedEncodingException
 	{
 		// Twitter supports OAuth2 *only* for obtaining an application token, not for user tokens.
 		// Using application token for search so that we don't have to go through hassle of getting a user token.
@@ -52,7 +51,11 @@ public class TwitterMain
 		{
 			//System.out.println(status);
 			Map<String, ?> userMap=(Map<String, ?>) status.get("user");
-			tweets.add(new Tweet(status.get("id").toString(), status.get("text").toString(),userMap.get("name").toString(),userMap.get("location").toString()));
+			Tweet tweet=new Tweet();
+			tweet.setText(status.get("text").toString());
+			tweet.setUserName(userMap.get("name").toString());
+			tweet.setUserLocation(userMap.get("location").toString());
+			tweets.add(tweet);
 		}
 		return tweets;
 	}
